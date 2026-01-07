@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sorteo de premios</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body class="setup-mode">
+  <div class="app">
+    <div class="logo-container">
+      <img src="Resources/Logo.png" alt="Logo del sorteo" class="main-logo">
+    </div>
+
+    <div id="setupScreen" class="card">
+      <div class="setup-top">
+        <div>
+          <div class="badge">
+            <div class="badge-dot"></div>
+            Sorteo en vivo
+          </div>
+          <h1 class="title">
+            <span class="emoji">🥎</span>
+            Sorteo Eventos Forlighting 
+            <!-- <script>document.write(new Date().getFullYear())</script> -->
+          </h1>
+        </div>
+        <button id="downloadExcelBtn" class="icon-excel" title="Descargar ganadores (Excel/CSV)">
+          📥 Ganadores
+        </button>
+      </div>
+
+      <div>
+        <div class="textarea-label">
+          <span>Participantes</span>
+          <small>Formato: Nombre,Departamento (uno por línea)</small>
+        </div>
+        <textarea id="participants" placeholder="Ejemplo:&#10;Jesús Rodríguez,TI&#10;Mario Uex,TI&#10;Josué Garcia,TI&#10;Isaac, TI"></textarea>
+
+        <div class="controls">
+          <button id="drawButton" class="button">
+            <span class="icon">🎲</span>
+            <span>Iniciar Sorteo</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="drawScreen" class="card hidden">
+      <div class="draw-header">
+        <button id="backButton" class="icon-button" title="Volver a ingresar participantes">
+          ← Volver
+        </button>
+
+        <div class="draw-status">
+          <div class="draw-title">Sorteo en progreso</div>
+        </div>
+      </div>
+
+      <div class="roulette-wrapper">
+        <div class="roulette-title">Ruleta de nombres</div>
+
+        <div class="roulette-container">
+          <div id="rouletteViewport" class="roulette-viewport">
+            <div id="rouletteList" class="roulette-list"></div>
+
+            <div class="roulette-highlight">
+              <div class="roulette-arrow left"></div>
+              <div class="roulette-arrow right"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="draw-controls">
+        <button id="selectWinnerButton" class="button">
+          <span class="icon">🎯</span>
+          <span>Girar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="winnerOverlay" class="winner-overlay" aria-hidden="true">
+    <div class="winner-overlay-content">
+      <button id="closeWinnerBtn" class="close-winner" aria-label="Cerrar ganador">✕</button>
+
+      <div class="winner-overlay-title">🎉 GANADOR 🎉</div>
+
+      <div id="winnerOverlayName" class="winner-overlay-name">
+        <div class="winner-name">Nombre</div>
+        <div class="winner-department">Departamento</div>
+      </div>
+
+      <label class="attended-checkbox">
+        <input type="checkbox" id="attendedCheckbox" />
+        Ganador
+      </label>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
