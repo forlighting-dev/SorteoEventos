@@ -597,3 +597,84 @@ textarea:focus {
   from { transform: rotateZ(0); }
   to { transform: rotateZ(360deg); }
 }
+
+/* ===== Modal Evento/Fecha ===== */
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: none;
+}
+
+.modal.show{ display: block; }
+
+.modal-backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 42, 94, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.modal-content{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 92vw);
+  border-radius: 26px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 40px 120px rgba(0,0,0,.8);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+.modal-title{
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94bf56;
+  margin: 6px 0 12px;
+  text-shadow: 0 0 14px rgba(148,191,86,.55);
+}
+
+.modal-field{ margin-bottom: 14px; }
+
+.modal-input{
+  width: 100%;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(13, 42, 94, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  outline: none;
+  font-size: 16px;
+}
+
+.modal-input:focus{
+  border-color: rgba(148, 191, 86, 0.95);
+  box-shadow: 0 0 0 1px rgba(148, 191, 86, 0.45);
+}
+
+.modal-accept{
+  width: 100%;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.modal-close{
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  background: rgba(204, 230, 246, 0.1);
+  color: #cce6f6;
+  border: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

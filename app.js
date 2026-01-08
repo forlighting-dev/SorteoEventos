@@ -17,6 +17,16 @@ const attendedCheckbox = document.getElementById('attendedCheckbox');
 
 const downloadExcelBtn = document.getElementById('downloadExcelBtn');
 
+// ===== Modal Evento/Fecha =====
+const eventModal = document.getElementById('eventModal');
+const eventSelect = document.getElementById('eventSelect');
+const eventDateInput = document.getElementById('eventDate');
+const acceptEventBtn = document.getElementById('acceptEventBtn');
+const closeEventModalBtn = document.getElementById('closeEventModalBtn');
+
+let selectedEvent = "";
+let selectedDate = ""; // YYYY-MM-DD
+
 let allParticipants = [];
 let remainingParticipants = [];
 let winnersHistory = [];
@@ -152,60 +162,120 @@ function closeWinnerOverlay() {
   selectWinnerButton.disabled = false;
 }
 
-function downloadWinnersExcel() {
+function formatDateDDMMYYYY(iso) {
+  if (!iso || typeof iso !== "string") return "";
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}-${m}-${y}`;
+}
+
+
+async function downloadWinnersExcel() {
   if (winnersHistory.length === 0) {
     showToast('No hay ganadores para exportar.', 'ℹ️');
     return;
   }
 
   try {
-    if (!window.XLSX) {
-      showToast("No se cargó XLSX. Revisa el script CDN en index.html", "⚠️");
+    if (!window.ExcelJS) {
+      showToast("No se cargó ExcelJS. Revisa el script CDN en index.html", "⚠️");
       return;
     }
 
-    const workbook = XLSX.utils.book_new();
+    const ev = (typeof selectedEvent !== "undefined" && selectedEvent) ? selectedEvent : "";
+    const dtRaw = (typeof selectedDate !== "undefined" && selectedDate) ? selectedDate : "";
+    const dt = formatDateDDMMYYYY(dtRaw);
 
-    const data = [
-      ["Nombre", "Departamento", "Ganador"],
-      ...winnersHistory.map(winner => [
-        winner.name || "",
-        winner.department || "",
-        winner.attended ? "Sí" : "No"
-      ])
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Ganadores");
+
+    ws.columns = [
+      { width: 30 }, 
+      { width: 25 }, 
+      { width: 15 },
     ];
 
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const COLOR_EVENTO = "FF1F4E9B"; 
+    const COLOR_HEADER = "FF7F93A0";
 
-    worksheet["!cols"] = [
-      { wch: 30 },
-      { wch: 25 },
-      { wch: 15 }
-    ];
+    const styleEventoFecha = {
+      font: { bold: true, color: { argb: "FFFFFFFF" } },
+      fill: { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_EVENTO } },
+      alignment: { vertical: "middle", horizontal: "left" },
+    };
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Ganadores");
+    const styleHeader = {
+      font: { bold: true, color: { argb: "FFFFFFFF" } },
+      fill: { type: "pattern", pattern: "solid", fgColor: { argb: COLOR_HEADER } },
+      alignment: { vertical: "middle", horizontal: "center" },
+    };
 
-    const stamp = new Date().toISOString()
-      .replace(/:/g, '-')
-      .replace('T', '_')
-      .slice(0, 19);
+    ws.getCell("A1").value = `Evento: ${ev}`;
+    ws.getCell("B1").value = `Fecha: ${dt}`;
+    ws.getCell("C1").value = ""; 
 
-    XLSX.writeFile(workbook, `ganadores_${stamp}.xlsx`);
-    showToast('Archivo Excel generado exitosamente', '📊');
+    ws.mergeCells("B1:C1");
 
+    ws.getCell("A1").style = styleEventoFecha;
+    ws.getCell("B1").style = styleEventoFecha;
+    ws.getCell("C1").style = styleEventoFecha;
+
+    ws.getRow(1).height = 22;
+
+    ws.getCell("A2").value = "Nombre";
+    ws.getCell("B2").value = "Departamento";
+    ws.getCell("C2").value = "Ganador";
+
+    ws.getCell("A2").style = styleHeader;
+    ws.getCell("B2").style = styleHeader;
+    ws.getCell("C2").style = styleHeader;
+
+    ws.getRow(2).height = 20;
+
+    let r = 3;
+    for (const w of winnersHistory) {
+      ws.getCell(`A${r}`).value = w.name || "";
+      ws.getCell(`B${r}`).value = w.department || "";
+      ws.getCell(`C${r}`).value = w.attended ? "Sí" : "No";
+      r++;
+    }
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const stamp = new Date().toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-");
+    const filename = `ganadores_${stamp}.xlsx`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    showToast("Archivo Excel generado exitosamente", "📊");
   } catch (error) {
-    console.error("Error al generar el archivo Excel:", error);
-    showToast('Error al generar el archivo Excel', '❌');
-    showToast('Intentando generar CSV...', '⚠️');
+    console.error("Error al generar el archivo Excel (ExcelJS):", error);
+    showToast("Error al generar el archivo Excel", "❌");
+    showToast("Intentando generar CSV...", "⚠️");
     downloadWinnersCSV();
   }
 }
 
+
 function downloadWinnersCSV() {
   if (winnersHistory.length === 0) return;
 
+  const ev = selectedEvent || "";
+  const dt = selectedDate || "";
+
   const csvData = [
-    ['Nombre', 'Departamento', 'Asistió'],
+    [`Evento: ${ev}`, `Fecha: ${dt}`, ""],
+    ["Nombre", "Departamento", "Ganador"],
     ...winnersHistory.map(w => [
       w.name || '',
       w.department || '',
@@ -221,13 +291,16 @@ function downloadWinnersCSV() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
+
   const stamp = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
   link.download = `ganadores_${stamp}.csv`;
+
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
 }
+
 
 async function showConfettiBurst() {
   const colors = ['#f97316', '#facc15', '#22c55e', '#38bdf8', '#a855f7', '#ec4899'];
@@ -247,11 +320,6 @@ async function showConfettiBurst() {
     setTimeout(() => piece.remove(), duration * 1000);
   }
 }
-
-function easeOutQuint(t) {
-  return 1 - Math.pow(1 - t, 5);
-}
-
 
 function advanceTape({ rowHeight, offsetRef, px }) {
   let offset = offsetRef.value - px;
@@ -275,7 +343,7 @@ function getTranslateY(el) {
   const tr = getComputedStyle(el).transform;
   if (!tr || tr === "none") return 0;
   const m = new DOMMatrixReadOnly(tr);
-  return m.m42; // translateY
+  return m.m42; 
 }
 
 function waitTransitionEnd(el, msFallback = 0) {
@@ -315,7 +383,6 @@ async function selectRandomWinner() {
   }
 
   shuffle(remainingParticipants);
-
   renderBaseRouletteList();
   await sleep(50);
 
@@ -436,6 +503,51 @@ async function selectRandomWinner() {
   updateStatus();
 }
 
+function openEventModal() {
+  if (!eventModal) return;
+
+  eventSelect.value = selectedEvent || "";
+  eventDateInput.value = selectedDate || "";
+
+  if (!eventDateInput.value) {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    eventDateInput.value = `${y}-${m}-${d}`;
+  }
+
+  eventModal.classList.add('show');
+  eventModal.setAttribute('aria-hidden', 'false');
+
+  setTimeout(() => eventSelect.focus(), 0);
+}
+
+function closeEventModal() {
+  if (!eventModal) return;
+  eventModal.classList.remove('show');
+  eventModal.setAttribute('aria-hidden', 'true');
+}
+
+function acceptEventAndStart() {
+  const ev = (eventSelect.value || "").trim();
+  const dt = (eventDateInput.value || "").trim();
+
+  if (!ev) {
+    showToast("Selecciona un evento.", "⚠️");
+    return;
+  }
+  if (!dt) {
+    showToast("Selecciona una fecha.", "⚠️");
+    return;
+  }
+
+  selectedEvent = ev;
+  selectedDate = dt;
+
+  closeEventModal();
+  startDraw();
+}
 
 function startDraw() {
   clearWinnersStorage();
@@ -499,10 +611,10 @@ function resetToSetup() {
 winnersHistory = loadWinnersFromStorage();
 updateStatus();
 
-
 document.body.classList.add('setup-mode');
 
-drawButton.addEventListener('click', () => startDraw());
+drawButton.addEventListener('click', () => openEventModal());
+
 selectWinnerButton.addEventListener('click', () => {
   selectRandomWinner().catch(err => {
     console.error(err);
@@ -511,11 +623,25 @@ selectWinnerButton.addEventListener('click', () => {
     showToast("Error seleccionando ganador", "💥");
   });
 });
+
 backButton.addEventListener('click', () => resetToSetup());
 closeWinnerBtn.addEventListener('click', () => closeWinnerOverlay());
 downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
 
+// Listeners modal
+acceptEventBtn.addEventListener('click', () => acceptEventAndStart());
+closeEventModalBtn.addEventListener('click', () => closeEventModal());
+eventModal.addEventListener('click', (e) => {
+  const target = e.target;
+  if (target && target.dataset && target.dataset.close) closeEventModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && eventModal.classList.contains('show')) {
+    closeEventModal();
+  }
+});
 
+/* ===== Decor DVD (rebotes) ===== */
 (function initSideDecorDVD() {
   const left = document.querySelector('.side-decor.left');
   const right = document.querySelector('.side-decor.right');
@@ -537,8 +663,8 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
   let running = false;
   let lastT = 0;
 
-  function rand(min, max){ return min + Math.random() * (max - min); }
-  function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
   function clearDecor() {
     left.innerHTML = "";
@@ -560,90 +686,83 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
     rafId = requestAnimationFrame(tick);
   }
 
- function spawnBouncers(container, count) {
-  const W = container.clientWidth;
-  const H = container.clientHeight;
-
-  const sources = [...logos];
-
-  while (sources.length < count) {
-    sources.push(pick(logos));
+  function aabbOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
-
-  shuffle(sources);
-
-  const sprites = [];
-
-  for (let i = 0; i < count; i++) {
-  
-    const minSize = 53;
-    const maxSize = 70;
-
-    const hardCap = Math.max(28, Math.min(maxSize, Math.floor(Math.min(W, H) * 0.32)));
-    const size = Math.round(rand(minSize, hardCap));
-
-    const speed = rand(65, 130) * (62 / Math.max(40, size));
-
-    const angle = rand(0, Math.PI * 2);
-
-    const el = document.createElement("img");
-    el.className = "dvd-logo";
-    el.src = sources[i];  
-    el.alt = "";
-    el.style.setProperty("--size", `${size}px`);
-    el.style.setProperty("--op", `${rand(0.55, 0.95).toFixed(2)}`);
-    container.appendChild(el);
-
-    let x = 0, y = 0;
-    let placed = false;
-
-    for (let tries = 0; tries < 120; tries++) {
-      x = rand(0, Math.max(0, W - size));
-      y = rand(0, Math.max(0, H - size));
-
-      let ok = true;
-      for (const s of sprites) {
-        if (aabbOverlap(x, y, size, size, s.x, s.y, s.w, s.h)) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) { placed = true; break; }
-    }
-
-    if (!placed) {
-      x = rand(0, Math.max(0, W - size));
-      y = rand(0, Math.max(0, H - size));
-    }
-
-    const s = {
-      el,
-      x, y,
-      vx: Math.cos(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
-      vy: Math.sin(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
-      w: size,
-      h: size
-    };
-
-    sprites.push(s);
-    renderSprite(s);
-  }
-
-  return sprites;
-}
-
 
   function renderSprite(s) {
     s.el.style.transform = `translate3d(${s.x}px, ${s.y}px, 0)`;
   }
 
-  function aabbOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
-    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
-  }
-
   function clampInside(s, W, H) {
     s.x = Math.max(0, Math.min(s.x, Math.max(0, W - s.w)));
     s.y = Math.max(0, Math.min(s.y, Math.max(0, H - s.h)));
+  }
+
+  function spawnBouncers(container, count) {
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+
+    // Asegura que haya al menos 1 de cada logo
+    const sources = [...logos];
+    while (sources.length < count) sources.push(pick(logos));
+    shuffle(sources);
+
+    const sprites = [];
+
+    for (let i = 0; i < count; i++) {
+      const minSize = 53;
+      const maxSize = 70;
+      const hardCap = Math.max(28, Math.min(maxSize, Math.floor(Math.min(W, H) * 0.32)));
+      const size = Math.round(rand(minSize, hardCap));
+
+      const speed = rand(65, 130) * (62 / Math.max(40, size));
+      const angle = rand(0, Math.PI * 2);
+
+      const el = document.createElement("img");
+      el.className = "dvd-logo";
+      el.src = sources[i];
+      el.alt = "";
+      el.style.setProperty("--size", `${size}px`);
+      el.style.setProperty("--op", `${rand(0.55, 0.95).toFixed(2)}`);
+      container.appendChild(el);
+
+      let x = 0, y = 0;
+      let placed = false;
+
+      for (let tries = 0; tries < 120; tries++) {
+        x = rand(0, Math.max(0, W - size));
+        y = rand(0, Math.max(0, H - size));
+
+        let ok = true;
+        for (const s of sprites) {
+          if (aabbOverlap(x, y, size, size, s.x, s.y, s.w, s.h)) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) { placed = true; break; }
+      }
+
+      if (!placed) {
+        x = rand(0, Math.max(0, W - size));
+        y = rand(0, Math.max(0, H - size));
+      }
+
+      const s = {
+        el,
+        x, y,
+        vx: Math.cos(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
+        vy: Math.sin(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
+        w: size,
+        h: size
+      };
+
+      sprites.push(s);
+      renderSprite(s);
+    }
+
+    return sprites;
   }
 
   function updateWorld(container, sprites, dt) {
@@ -700,7 +819,7 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
 
   function tick(t) {
     if (!running) return;
-    const dt = Math.min(0.033, (t - lastT) / 1000); 
+    const dt = Math.min(0.033, (t - lastT) / 1000);
     lastT = t;
 
     updateWorld(left, spritesL, dt);
@@ -738,7 +857,6 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
 
       const count = Math.max(4, vh > 820 ? 8 : 6);
 
-
       void left.offsetWidth;
       void right.offsetWidth;
 
@@ -761,4 +879,3 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
     updateSideBars();
   });
 })();
-

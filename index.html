@@ -7,7 +7,8 @@
 
   <link rel="stylesheet" href="styles.css">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
 </head>
 
 <body class="setup-mode">
@@ -26,8 +27,8 @@
           </div>
 
           <h1 class="title">
-            <span class="emoji">🥎</span>
-            Sorteo Eventos Forlighting
+            <span class="emoji">⚾</span>
+            Sorteo de eventos
           </h1>
         </div>
 
@@ -107,6 +108,37 @@
         <input type="checkbox" id="attendedCheckbox" />
         Ganador
       </label>
+    </div>
+  </div>
+
+  <div id="eventModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+
+    <div class="modal-content glass" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
+      <button id="closeEventModalBtn" class="modal-close" aria-label="Cerrar">✕</button>
+
+      <h2 id="eventModalTitle" class="modal-title">Evento</h2>
+
+      <div class="modal-field">
+        <select id="eventSelect" class="modal-input">
+          <option value="" selected disabled>Selecciona un evento...</option>
+          <option>Charros</option>
+          <option>Chivas</option>
+          <option>Atlas</option>
+          <option>Astros</option>
+          <option>Arena Guadalajara</option>
+        </select>
+      </div>
+
+      <h2 class="modal-title">Fecha</h2>
+
+      <div class="modal-field">
+        <input id="eventDate" type="date" class="modal-input" />
+      </div>
+
+      <button id="acceptEventBtn" class="button modal-accept">
+        <span>Aceptar</span>
+      </button>
     </div>
   </div>
 
