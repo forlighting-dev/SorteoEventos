@@ -302,6 +302,36 @@ function waitTransitionEnd(el, msFallback = 0) {
 }
 
 async function selectRandomWinner() {
+  function getTranslateY(el) {
+    const tr = getComputedStyle(el).transform;
+    if (!tr || tr === "none") return 0;
+    const m = new DOMMatrixReadOnly(tr);
+    return m.m42; 
+  }
+
+  function waitTransitionEnd(el, msFallback = 0) {
+    return new Promise((resolve) => {
+      let done = false;
+      const onEnd = (e) => {
+        if (e.propertyName !== "transform") return;
+        if (done) return;
+        done = true;
+        el.removeEventListener("transitionend", onEnd);
+        resolve();
+      };
+      el.addEventListener("transitionend", onEnd);
+
+      if (msFallback > 0) {
+        setTimeout(() => {
+          if (done) return;
+          done = true;
+          el.removeEventListener("transitionend", onEnd);
+          resolve();
+        }, msFallback);
+      }
+    });
+  }
+
   if (isSelecting) return;
 
   isSelecting = true;
@@ -323,18 +353,48 @@ async function selectRandomWinner() {
   const loops = Math.max(6, Math.ceil(minTotalItems / remainingParticipants.length));
 
   const baseOrder = [...remainingParticipants];
+  const perLoop = baseOrder.length;
+
   const extendedList = [];
+  let prevLastId = null;
 
   for (let i = 0; i < loops - 1; i++) {
-    extendedList.push(...shuffle([...baseOrder]));
+    let chunk = shuffle([...baseOrder]);
+
+    if (prevLastId !== null && chunk.length > 1 && chunk[0].id === prevLastId) {
+      let guard = 0;
+      while (guard < chunk.length && chunk[0].id === prevLastId) {
+        chunk.push(chunk.shift()); // rotar
+        guard++;
+      }
+    }
+
+    if (i === (loops - 2) && chunk.length > 1) {
+      let tries = 0;
+      while (tries < 25 && chunk[chunk.length - 1].id === baseOrder[0].id) {
+        chunk = shuffle([...baseOrder]);
+
+        if (prevLastId !== null && chunk.length > 1 && chunk[0].id === prevLastId) {
+          let guard = 0;
+          while (guard < chunk.length && chunk[0].id === prevLastId) {
+            chunk.push(chunk.shift());
+            guard++;
+          }
+        }
+        tries++;
+      }
+    }
+
+    extendedList.push(...chunk);
+    prevLastId = chunk[chunk.length - 1].id;
   }
 
   extendedList.push(...baseOrder);
 
-  rouletteListEl.innerHTML = '';
-  extendedList.forEach(p => {
-    const it = document.createElement('div');
-    it.className = 'roulette-item';
+  rouletteListEl.innerHTML = "";
+  extendedList.forEach((p) => {
+    const it = document.createElement("div");
+    it.className = "roulette-item";
     it.dataset.id = p.id.toString();
     it.textContent = p.name;
     rouletteListEl.appendChild(it);
@@ -342,7 +402,7 @@ async function selectRandomWinner() {
 
   await sleep(40);
 
-  const items = rouletteListEl.querySelectorAll('.roulette-item');
+  const items = rouletteListEl.querySelectorAll(".roulette-item");
   if (items.length === 0) {
     isSelecting = false;
     selectWinnerButton.disabled = false;
@@ -353,26 +413,24 @@ async function selectRandomWinner() {
   const viewportHeight = rouletteViewport.getBoundingClientRect().height;
   const highlightOffset = (viewportHeight - rowHeight) / 2;
 
-  const baseIndex = remainingParticipants.findIndex(p => p.id === winnerObj.id);
-  const perLoop = remainingParticipants.length;
+  const baseIndex = baseOrder.findIndex((p) => p.id === winnerObj.id);
   const targetIndex = (loops - 1) * perLoop + baseIndex;
+
   const finalTranslate = -(targetIndex * rowHeight) + highlightOffset;
 
-
   const spinDurationMs = 10000;
-  rouletteListEl.style.transition = 'none';
-  rouletteListEl.style.transform = 'translateY(0px)';
 
+  rouletteListEl.style.transition = "none";
+  rouletteListEl.style.transform = "translateY(0px)";
   await sleep(10);
 
-
   rouletteSound.currentTime = 0;
-  rouletteSound.play().catch(e => console.log("No se pudo reproducir el audio de ruleta:", e));
+  rouletteSound.play().catch((e) => console.log("No se pudo reproducir el audio de ruleta:", e));
 
   rouletteListEl.style.transition = `transform ${spinDurationMs}ms cubic-bezier(0.1, 0.7, 0.1, 1)`;
   rouletteListEl.style.transform = `translateY(${finalTranslate}px)`;
 
-  await waitTransitionEnd(rouletteListEl, spinDurationMs + 200);
+  await waitTransitionEnd(rouletteListEl, spinDurationMs + 250);
 
   const winnerEl = rouletteListEl.querySelector(`.roulette-item[data-id="${winnerObj.id}"]`);
   if (winnerEl) {
@@ -382,7 +440,7 @@ async function selectRandomWinner() {
     const viewportCenterY = viewportRect.top + viewportRect.height / 2;
     const winnerCenterY = winnerRect.top + winnerRect.height / 2;
 
-    const delta = viewportCenterY - winnerCenterY; 
+    const delta = viewportCenterY - winnerCenterY;
     const currentY = getTranslateY(rouletteListEl);
 
     rouletteListEl.style.transition = "none";
@@ -402,6 +460,7 @@ async function selectRandomWinner() {
   selectWinnerButton.disabled = false;
   updateStatus();
 }
+
 
 
 function startDraw() {
