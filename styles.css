@@ -64,17 +64,22 @@ body::before {
 .side-decor.left{ left: 0; }
 .side-decor.right{ right: 0; }
 
-.side-decor .team-logo{
+.side-decor .dvd-logo{
   position: absolute;
-  left: 50%;
-  width: var(--size, 70px);
-  height: auto;
+  left: 0;
+  top: 0;
+
+  width: var(--size, 72px);
+  height: var(--size, 72px);
+  object-fit: contain;
+
   opacity: var(--op, 0.85);
   filter: drop-shadow(0 10px 20px rgba(0,0,0,.35));
-  transform: translate(-50%, 0);
-  animation: floatY var(--dur, 6s) ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
+  will-change: transform;
+
+  /* filter: drop-shadow(0 0 10px rgba(148,191,86,.45)) drop-shadow(0 10px 20px rgba(0,0,0,.35)); */
 }
+
 
 @keyframes floatY{
   0%, 100% { transform: translate(-50%, -22px); }

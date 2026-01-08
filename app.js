@@ -516,7 +516,7 @@ closeWinnerBtn.addEventListener('click', () => closeWinnerOverlay());
 downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
 
 
-(function initSideDecor() {
+(function initSideDecorDVD() {
   const left = document.querySelector('.side-decor.left');
   const right = document.querySelector('.side-decor.right');
   if (!left || !right) return;
@@ -531,32 +531,182 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
   const bgImg = new Image();
   bgImg.src = "Resources/eventos.png";
 
+  let rafId = null;
+  let spritesL = [];
+  let spritesR = [];
+  let running = false;
+  let lastT = 0;
+
+  function rand(min, max){ return min + Math.random() * (max - min); }
+  function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
   function clearDecor() {
     left.innerHTML = "";
     right.innerHTML = "";
+    spritesL = [];
+    spritesR = [];
   }
 
-  function spawnLogos(container, count) {
-    for (let i = 0; i < count; i++) {
-      const img = document.createElement("img");
-      img.className = "team-logo";
-      img.src = logos[i % logos.length];
-      img.alt = "";
+  function stopAnim() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  }
 
-      const top = Math.random() * 100;
-      const size = 44 + Math.random() * 46;
-      const dur = 4.5 + Math.random() * 4.5;
-      const delay = -(Math.random() * dur);
-      const op = 0.45 + Math.random() * 0.45;
+  function startAnim() {
+    if (running) return;
+    running = true;
+    lastT = performance.now();
+    rafId = requestAnimationFrame(tick);
+  }
 
-      img.style.top = `${top}%`;
-      img.style.setProperty("--size", `${size}px`);
-      img.style.setProperty("--dur", `${dur}s`);
-      img.style.setProperty("--delay", `${delay}s`);
-      img.style.setProperty("--op", `${op}`);
+ function spawnBouncers(container, count) {
+  const W = container.clientWidth;
+  const H = container.clientHeight;
 
-      container.appendChild(img);
+  const sources = [...logos];
+
+  while (sources.length < count) {
+    sources.push(pick(logos));
+  }
+
+  shuffle(sources);
+
+  const sprites = [];
+
+  for (let i = 0; i < count; i++) {
+  
+    const minSize = 53;
+    const maxSize = 70;
+
+    const hardCap = Math.max(28, Math.min(maxSize, Math.floor(Math.min(W, H) * 0.32)));
+    const size = Math.round(rand(minSize, hardCap));
+
+    const speed = rand(65, 130) * (62 / Math.max(40, size));
+
+    const angle = rand(0, Math.PI * 2);
+
+    const el = document.createElement("img");
+    el.className = "dvd-logo";
+    el.src = sources[i];  
+    el.alt = "";
+    el.style.setProperty("--size", `${size}px`);
+    el.style.setProperty("--op", `${rand(0.55, 0.95).toFixed(2)}`);
+    container.appendChild(el);
+
+    let x = 0, y = 0;
+    let placed = false;
+
+    for (let tries = 0; tries < 120; tries++) {
+      x = rand(0, Math.max(0, W - size));
+      y = rand(0, Math.max(0, H - size));
+
+      let ok = true;
+      for (const s of sprites) {
+        if (aabbOverlap(x, y, size, size, s.x, s.y, s.w, s.h)) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) { placed = true; break; }
     }
+
+    if (!placed) {
+      x = rand(0, Math.max(0, W - size));
+      y = rand(0, Math.max(0, H - size));
+    }
+
+    const s = {
+      el,
+      x, y,
+      vx: Math.cos(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
+      vy: Math.sin(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
+      w: size,
+      h: size
+    };
+
+    sprites.push(s);
+    renderSprite(s);
+  }
+
+  return sprites;
+}
+
+
+  function renderSprite(s) {
+    s.el.style.transform = `translate3d(${s.x}px, ${s.y}px, 0)`;
+  }
+
+  function aabbOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+  }
+
+  function clampInside(s, W, H) {
+    s.x = Math.max(0, Math.min(s.x, Math.max(0, W - s.w)));
+    s.y = Math.max(0, Math.min(s.y, Math.max(0, H - s.h)));
+  }
+
+  function updateWorld(container, sprites, dt) {
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+
+    for (const s of sprites) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+
+      if (s.x <= 0) { s.x = 0; s.vx = Math.abs(s.vx); }
+      else if (s.x + s.w >= W) { s.x = Math.max(0, W - s.w); s.vx = -Math.abs(s.vx); }
+
+      if (s.y <= 0) { s.y = 0; s.vy = Math.abs(s.vy); }
+      else if (s.y + s.h >= H) { s.y = Math.max(0, H - s.h); s.vy = -Math.abs(s.vy); }
+    }
+
+    for (let i = 0; i < sprites.length; i++) {
+      for (let j = i + 1; j < sprites.length; j++) {
+        const a = sprites[i];
+        const b = sprites[j];
+
+        if (!aabbOverlap(a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h)) continue;
+
+        const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+
+        if (overlapX < overlapY) {
+          const push = overlapX / 2;
+          if (a.x < b.x) { a.x -= push; b.x += push; }
+          else { a.x += push; b.x -= push; }
+
+          const tmp = a.vx; a.vx = b.vx; b.vx = tmp;
+        } else {
+          const push = overlapY / 2;
+          if (a.y < b.y) { a.y -= push; b.y += push; }
+          else { a.y += push; b.y -= push; }
+
+          const tmp = a.vy; a.vy = b.vy; b.vy = tmp;
+        }
+
+        a.vx += rand(-8, 8);
+        a.vy += rand(-8, 8);
+        b.vx += rand(-8, 8);
+        b.vy += rand(-8, 8);
+
+        clampInside(a, W, H);
+        clampInside(b, W, H);
+      }
+    }
+
+    for (const s of sprites) renderSprite(s);
+  }
+
+  function tick(t) {
+    if (!running) return;
+    const dt = Math.min(0.033, (t - lastT) / 1000); 
+    lastT = t;
+
+    updateWorld(left, spritesL, dt);
+    updateWorld(right, spritesR, dt);
+
+    rafId = requestAnimationFrame(tick);
   }
 
   function updateSideBars() {
@@ -577,22 +727,38 @@ downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
     left.classList.toggle("is-active", active);
     right.classList.toggle("is-active", active);
 
-    if (active) {
-      if (left.childElementCount === 0 || right.childElementCount === 0) {
-        clearDecor();
-        const count = vh > 820 ? 7 : 5;
-        spawnLogos(left, count);
-        spawnLogos(right, count);
-      }
-    } else {
+    if (!active) {
+      stopAnim();
       clearDecor();
+      return;
+    }
+
+    if (spritesL.length === 0 || spritesR.length === 0) {
+      clearDecor();
+
+      const count = Math.max(4, vh > 820 ? 8 : 6);
+
+
+      void left.offsetWidth;
+      void right.offsetWidth;
+
+      spritesL = spawnBouncers(left, count);
+      spritesR = spawnBouncers(right, count);
+
+      startAnim();
+    } else {
+      const WL = left.clientWidth, HL = left.clientHeight;
+      const WR = right.clientWidth, HR = right.clientHeight;
+
+      for (const s of spritesL) clampInside(s, WL, HL);
+      for (const s of spritesR) clampInside(s, WR, HR);
     }
   }
 
-  bgImg.onload = () => updateSideBars();
+  bgImg.onload = updateSideBars;
 
   window.addEventListener("resize", () => {
-    clearDecor();
     updateSideBars();
   });
 })();
+
