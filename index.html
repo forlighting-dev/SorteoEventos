@@ -2,30 +2,37 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sorteo de premios</title>
+
   <link rel="stylesheet" href="styles.css">
+
+  <!-- XLSX (para exportar Excel .xlsx desde el botón Ganadores) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body class="setup-mode">
-  <div class="app">
-    <div class="logo-container">
-      <img src="Resources/Logo.png" alt="Logo del sorteo" class="main-logo">
-    </div>
 
-    <div id="setupScreen" class="card">
+  <!-- Decoración lateral (solo aparece en las “barras” azules) -->
+  <div class="side-decor left" aria-hidden="true"></div>
+  <div class="side-decor right" aria-hidden="true"></div>
+
+  <div class="app">
+
+    <div id="setupScreen" class="card glass">
       <div class="setup-top">
-        <div>
+        <div class="setup-left">
           <div class="badge">
             <div class="badge-dot"></div>
             Sorteo en vivo
           </div>
+
           <h1 class="title">
             <span class="emoji">🥎</span>
-            Sorteo Eventos Forlighting 
-            <!-- <script>document.write(new Date().getFullYear())</script> -->
+            Sorteo Eventos Forlighting
           </h1>
         </div>
+
         <button id="downloadExcelBtn" class="icon-excel" title="Descargar ganadores (Excel/CSV)">
           📥 Ganadores
         </button>
@@ -36,7 +43,10 @@
           <span>Participantes</span>
           <small>Formato: Nombre,Departamento (uno por línea)</small>
         </div>
-        <textarea id="participants" placeholder="Ejemplo:&#10;Jesús Rodríguez,TI&#10;Mario Uex,TI&#10;Josué Garcia,TI&#10;Isaac, TI"></textarea>
+
+        <textarea
+          id="participants"
+          placeholder="Ejemplo:&#10;Jesús Rodríguez,TI&#10;Mario Uex,TI&#10;Josué Garcia,TI&#10;Isaac, TI"></textarea>
 
         <div class="controls">
           <button id="drawButton" class="button">
@@ -47,7 +57,7 @@
       </div>
     </div>
 
-    <div id="drawScreen" class="card hidden">
+    <div id="drawScreen" class="card glass hidden">
       <div class="draw-header">
         <button id="backButton" class="icon-button" title="Volver a ingresar participantes">
           ← Volver
@@ -61,7 +71,7 @@
       <div class="roulette-wrapper">
         <div class="roulette-title">Ruleta de nombres</div>
 
-        <div class="roulette-container">
+        <div class="roulette-container glass-inner">
           <div id="rouletteViewport" class="roulette-viewport">
             <div id="rouletteList" class="roulette-list"></div>
 
@@ -69,6 +79,7 @@
               <div class="roulette-arrow left"></div>
               <div class="roulette-arrow right"></div>
             </div>
+
           </div>
         </div>
       </div>
@@ -80,10 +91,11 @@
         </button>
       </div>
     </div>
+
   </div>
 
   <div id="winnerOverlay" class="winner-overlay" aria-hidden="true">
-    <div class="winner-overlay-content">
+    <div class="winner-overlay-content glass">
       <button id="closeWinnerBtn" class="close-winner" aria-label="Cerrar ganador">✕</button>
 
       <div class="winner-overlay-title">🎉 GANADOR 🎉</div>
@@ -99,6 +111,7 @@
       </label>
     </div>
   </div>
+
   <script src="app.js"></script>
 </body>
 </html>

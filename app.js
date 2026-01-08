@@ -9,7 +9,6 @@ const rouletteViewport = document.getElementById('rouletteViewport');
 const rouletteListEl = document.getElementById('rouletteList');
 
 const selectWinnerButton = document.getElementById('selectWinnerButton');
-const drawHelperText = document.getElementById('drawHelperText');
 
 const winnerOverlay = document.getElementById('winnerOverlay');
 const winnerOverlayName = document.getElementById('winnerOverlayName');
@@ -27,6 +26,36 @@ let currentWinner = null;
 const rouletteSound = new Audio('Resources/Ruleta.mp3');
 const winnerSound = new Audio('Resources/Ganador.mp3');
 winnerSound.loop = true;
+
+const LS_KEY_WINNERS = "raffle_winners_v1";
+
+function loadWinnersFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY_WINNERS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.warn("No se pudo leer localStorage winners:", e);
+    return [];
+  }
+}
+
+function saveWinnersToStorage(list) {
+  try {
+    localStorage.setItem(LS_KEY_WINNERS, JSON.stringify(list));
+  } catch (e) {
+    console.warn("No se pudo guardar localStorage winners:", e);
+  }
+}
+
+function clearWinnersStorage() {
+  try {
+    localStorage.removeItem(LS_KEY_WINNERS);
+  } catch (e) {
+    console.warn("No se pudo limpiar localStorage winners:", e);
+  }
+}
 
 function showToast(message, icon = "⚠️") {
   const toast = document.createElement('div');
@@ -82,43 +111,43 @@ function openWinnerOverlay(winnerObj) {
   winnerOverlay.classList.add('show');
   winnerOverlay.setAttribute('aria-hidden', 'false');
   attendedCheckbox.checked = false;
-  
+
   const winnerNameElement = winnerOverlayName.querySelector('.winner-name');
   winnerNameElement.classList.remove('animate');
   void winnerNameElement.offsetWidth;
   winnerNameElement.classList.add('animate');
-  
+
   winnerSound.currentTime = 0;
-  winnerSound.play().catch(e => {
-    console.log("No se pudo reproducir el audio del ganador:", e);
-  });
+  winnerSound.play().catch(() => { });
 }
 
 function closeWinnerOverlay() {
   winnerOverlay.classList.remove('show');
   winnerOverlay.setAttribute('aria-hidden', 'true');
-  
+
   winnerSound.pause();
   winnerSound.currentTime = 0;
-  
+
   if (currentWinner && attendedCheckbox.checked) {
-    winnersHistory.push({
+    const entry = {
       id: currentWinner.id,
       name: currentWinner.name,
       department: currentWinner.department,
       timestamp: (new Date()).toLocaleString(),
       attended: true
-    });
-    
+    };
+
+    winnersHistory.push(entry);
+    saveWinnersToStorage(winnersHistory);
     showToast(`${currentWinner.name} guardado como ganador`, "✅");
   }
-  
-  currentWinner = null; 
-  attendedCheckbox.checked = false; 
-  
+
+  currentWinner = null;
+  attendedCheckbox.checked = false;
+
   renderBaseRouletteList();
   updateStatus();
-  
+
   isSelecting = false;
   selectWinnerButton.disabled = false;
 }
@@ -130,51 +159,51 @@ function downloadWinnersExcel() {
   }
 
   try {
+    if (!window.XLSX) {
+      showToast("No se cargó XLSX. Revisa el script CDN en index.html", "⚠️");
+      return;
+    }
+
     const workbook = XLSX.utils.book_new();
-    
+
     const data = [
-      ["Nombre", "Departamento", "Ganador"], 
+      ["Nombre", "Departamento", "Ganador"],
       ...winnersHistory.map(winner => [
         winner.name || "",
         winner.department || "",
         winner.attended ? "Sí" : "No"
       ])
     ];
-    
+
     const worksheet = XLSX.utils.aoa_to_sheet(data);
-    
+
     worksheet["!cols"] = [
       { wch: 30 },
-      { wch: 25 }, 
-      { wch: 15 }  
+      { wch: 25 },
+      { wch: 15 }
     ];
-    
+
     XLSX.utils.book_append_sheet(workbook, worksheet, "Ganadores");
-    
+
     const stamp = new Date().toISOString()
       .replace(/:/g, '-')
       .replace('T', '_')
       .slice(0, 19);
-    
-    const fileName = `ganadores_${stamp}.xlsx`;
-    
-    XLSX.writeFile(workbook, fileName);
-    
+
+    XLSX.writeFile(workbook, `ganadores_${stamp}.xlsx`);
     showToast('Archivo Excel generado exitosamente', '📊');
-    
+
   } catch (error) {
     console.error("Error al generar el archivo Excel:", error);
     showToast('Error al generar el archivo Excel', '❌');
-    
-    showToast('Intentando generar archivo CSV como alternativa...', '⚠️');
+    showToast('Intentando generar CSV...', '⚠️');
     downloadWinnersCSV();
   }
 }
 
-// Función alternativa CSV (por si acaso)
 function downloadWinnersCSV() {
   if (winnersHistory.length === 0) return;
-  
+
   const csvData = [
     ['Nombre', 'Departamento', 'Asistió'],
     ...winnersHistory.map(w => [
@@ -183,16 +212,16 @@ function downloadWinnersCSV() {
       w.attended ? 'Sí' : 'No'
     ])
   ];
-  
-  const csvContent = csvData.map(row => 
-    row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')
+
+  const csvContent = csvData.map(row =>
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
   ).join('\r\n');
-  
+
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const stamp = new Date().toISOString().slice(0,19).replace('T','_').replace(/:/g,'-');
+  const stamp = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
   link.download = `ganadores_${stamp}.csv`;
   document.body.appendChild(link);
   link.click();
@@ -202,7 +231,7 @@ function downloadWinnersCSV() {
 
 async function showConfettiBurst() {
   const colors = ['#f97316', '#facc15', '#22c55e', '#38bdf8', '#a855f7', '#ec4899'];
-  const pieces = 120;
+  const pieces = 150;
   for (let i = 0; i < pieces; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
@@ -219,9 +248,62 @@ async function showConfettiBurst() {
   }
 }
 
+function easeOutQuint(t) {
+  return 1 - Math.pow(1 - t, 5);
+}
+
+
+function advanceTape({ rowHeight, offsetRef, px }) {
+  let offset = offsetRef.value - px;
+
+  while (offset <= -rowHeight) {
+    offset += rowHeight;
+
+    const first = rouletteListEl.firstElementChild;
+    if (first) rouletteListEl.appendChild(first);
+
+    if (offsetRef.order && offsetRef.order.length > 0) {
+      offsetRef.order.push(offsetRef.order.shift());
+    }
+  }
+
+  offsetRef.value = offset;
+  rouletteListEl.style.transform = `translateY(${offset}px)`;
+}
+
+function getTranslateY(el) {
+  const tr = getComputedStyle(el).transform;
+  if (!tr || tr === "none") return 0;
+  const m = new DOMMatrixReadOnly(tr);
+  return m.m42; // translateY
+}
+
+function waitTransitionEnd(el, msFallback = 0) {
+  return new Promise((resolve) => {
+    let done = false;
+    const onEnd = (e) => {
+      if (e.propertyName !== "transform") return;
+      if (done) return;
+      done = true;
+      el.removeEventListener("transitionend", onEnd);
+      resolve();
+    };
+    el.addEventListener("transitionend", onEnd);
+
+    if (msFallback > 0) {
+      setTimeout(() => {
+        if (done) return;
+        done = true;
+        el.removeEventListener("transitionend", onEnd);
+        resolve();
+      }, msFallback);
+    }
+  });
+}
+
 async function selectRandomWinner() {
   if (isSelecting) return;
-  
+
   isSelecting = true;
   selectWinnerButton.disabled = true;
 
@@ -240,7 +322,7 @@ async function selectRandomWinner() {
   const minTotalItems = Math.ceil((targetAnimationTime / 1000) * minItemsPerSecond);
   const loops = Math.max(6, Math.ceil(minTotalItems / remainingParticipants.length));
 
-  const baseOrder = [...remainingParticipants]; 
+  const baseOrder = [...remainingParticipants];
   const extendedList = [];
 
   for (let i = 0; i < loops - 1; i++) {
@@ -248,7 +330,6 @@ async function selectRandomWinner() {
   }
 
   extendedList.push(...baseOrder);
-
 
   rouletteListEl.innerHTML = '';
   extendedList.forEach(p => {
@@ -262,20 +343,21 @@ async function selectRandomWinner() {
   await sleep(40);
 
   const items = rouletteListEl.querySelectorAll('.roulette-item');
-  if (items.length === 0) { 
-    isSelecting = false; 
-    selectWinnerButton.disabled = false; 
-    return; 
+  if (items.length === 0) {
+    isSelecting = false;
+    selectWinnerButton.disabled = false;
+    return;
   }
 
-  const rowHeight = items[0].offsetHeight;
-  const viewportHeight = rouletteViewport.clientHeight;
-  const highlightOffset = viewportHeight / 2 - rowHeight / 2;
+  const rowHeight = items[0].getBoundingClientRect().height;
+  const viewportHeight = rouletteViewport.getBoundingClientRect().height;
+  const highlightOffset = (viewportHeight - rowHeight) / 2;
 
   const baseIndex = remainingParticipants.findIndex(p => p.id === winnerObj.id);
   const perLoop = remainingParticipants.length;
   const targetIndex = (loops - 1) * perLoop + baseIndex;
-  const finalTranslate = -(targetIndex * rowHeight - highlightOffset);
+  const finalTranslate = -(targetIndex * rowHeight) + highlightOffset;
+
 
   const spinDurationMs = 10000;
   rouletteListEl.style.transition = 'none';
@@ -283,18 +365,30 @@ async function selectRandomWinner() {
 
   await sleep(10);
 
-  // Reproducir sonido de ruleta
+
   rouletteSound.currentTime = 0;
-  rouletteSound.play().catch(e => {
-    console.log("No se pudo reproducir el audio de ruleta:", e);
-  });
-  
+  rouletteSound.play().catch(e => console.log("No se pudo reproducir el audio de ruleta:", e));
+
   rouletteListEl.style.transition = `transform ${spinDurationMs}ms cubic-bezier(0.1, 0.7, 0.1, 1)`;
   rouletteListEl.style.transform = `translateY(${finalTranslate}px)`;
 
-  await sleep(spinDurationMs + 500);
+  await waitTransitionEnd(rouletteListEl, spinDurationMs + 200);
 
-  // Detener sonido de ruleta
+  const winnerEl = rouletteListEl.querySelector(`.roulette-item[data-id="${winnerObj.id}"]`);
+  if (winnerEl) {
+    const viewportRect = rouletteViewport.getBoundingClientRect();
+    const winnerRect = winnerEl.getBoundingClientRect();
+
+    const viewportCenterY = viewportRect.top + viewportRect.height / 2;
+    const winnerCenterY = winnerRect.top + winnerRect.height / 2;
+
+    const delta = viewportCenterY - winnerCenterY; 
+    const currentY = getTranslateY(rouletteListEl);
+
+    rouletteListEl.style.transition = "none";
+    rouletteListEl.style.transform = `translateY(${currentY + delta}px)`;
+  }
+
   rouletteSound.pause();
   rouletteSound.currentTime = 0;
 
@@ -303,12 +397,19 @@ async function selectRandomWinner() {
   setTimeout(showConfettiBurst, 550);
 
   remainingParticipants.splice(randomIndex, 1);
+
+  isSelecting = false;
+  selectWinnerButton.disabled = false;
+  updateStatus();
 }
 
+
 function startDraw() {
+  clearWinnersStorage();
   winnersHistory = [];
+  updateStatus();
   showToast('Listado de ganadores reiniciado', '🔄');
-  
+
   const lines = participantsTextarea.value
     .split('\n')
     .map(l => l.trim())
@@ -327,22 +428,16 @@ function startDraw() {
       showToast("Cada participante debe tener NOMBRE y DEPARTAMENTO.", "⚠️");
       throw new Error("Datos inválidos en participantes");
     }
-
-    return {
-      id: index + 1,
-      name,
-      department: dept
-    };
+    return { id: index + 1, name, department: dept };
   });
 
   remainingParticipants = shuffle([...allParticipants]);
-  
-  updateStatus();
+
   renderBaseRouletteList();
-  
+
   setupScreen.classList.add('hidden');
   drawScreen.classList.remove('hidden');
-  
+
   document.body.classList.remove('setup-mode');
   document.body.classList.add('draw-mode');
 }
@@ -354,55 +449,117 @@ function resetToSetup() {
   rouletteListEl.innerHTML = '';
   currentWinner = null;
   attendedCheckbox.checked = false;
-  
-  // Detener todos los sonidos al volver
-  rouletteSound.pause();
-  rouletteSound.currentTime = 0;
-  winnerSound.pause();
-  winnerSound.currentTime = 0;
-  
+
+  rouletteSound.pause(); rouletteSound.currentTime = 0;
+  winnerSound.pause(); winnerSound.currentTime = 0;
+
   updateStatus();
   drawScreen.classList.add('hidden');
   setupScreen.classList.remove('hidden');
-  
+
   winnerOverlay.classList.remove('show');
-  
+
   document.body.classList.remove('draw-mode');
   document.body.classList.add('setup-mode');
 }
 
+winnersHistory = loadWinnersFromStorage();
+updateStatus();
+
+
 document.body.classList.add('setup-mode');
 
-drawButton.addEventListener('click', () => {
-  startDraw();
-});
-
+drawButton.addEventListener('click', () => startDraw());
 selectWinnerButton.addEventListener('click', () => {
-  selectRandomWinner().catch(err => { 
-    console.error(err); 
-    isSelecting = false; 
-    selectWinnerButton.disabled = false; 
-    showToast("Error seleccionando ganador","💥"); 
+  selectRandomWinner().catch(err => {
+    console.error(err);
+    isSelecting = false;
+    selectWinnerButton.disabled = false;
+    showToast("Error seleccionando ganador", "💥");
   });
 });
+backButton.addEventListener('click', () => resetToSetup());
+closeWinnerBtn.addEventListener('click', () => closeWinnerOverlay());
+downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
 
-backButton.addEventListener('click', () => {
-  resetToSetup();
-});
 
-attendedCheckbox.addEventListener('change', (e) => {
-  if (currentWinner) {
-    const status = e.target.checked ? 'marcado' : 'desmarcado';
+(function initSideDecor() {
+  const left = document.querySelector('.side-decor.left');
+  const right = document.querySelector('.side-decor.right');
+  if (!left || !right) return;
+
+  const logos = [
+    "Resources/AstrosLogo.png",
+    "Resources/AtlasLogo.png",
+    "Resources/CharrosLogo.png",
+    "Resources/ChivasLogo.png"
+  ];
+
+  const bgImg = new Image();
+  bgImg.src = "Resources/eventos.png";
+
+  function clearDecor() {
+    left.innerHTML = "";
+    right.innerHTML = "";
   }
-});
 
-closeWinnerBtn.addEventListener('click', () => {
-  closeWinnerOverlay();
-});
+  function spawnLogos(container, count) {
+    for (let i = 0; i < count; i++) {
+      const img = document.createElement("img");
+      img.className = "team-logo";
+      img.src = logos[i % logos.length];
+      img.alt = "";
 
-// Cambiar a la nueva función de Excel
-downloadExcelBtn.addEventListener('click', () => {
-  downloadWinnersExcel();
-});
+      const top = Math.random() * 100;
+      const size = 44 + Math.random() * 46;
+      const dur = 4.5 + Math.random() * 4.5;
+      const delay = -(Math.random() * dur);
+      const op = 0.45 + Math.random() * 0.45;
 
-updateStatus();
+      img.style.top = `${top}%`;
+      img.style.setProperty("--size", `${size}px`);
+      img.style.setProperty("--dur", `${dur}s`);
+      img.style.setProperty("--delay", `${delay}s`);
+      img.style.setProperty("--op", `${op}`);
+
+      container.appendChild(img);
+    }
+  }
+
+  function updateSideBars() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const iw = bgImg.naturalWidth || 0;
+    const ih = bgImg.naturalHeight || 0;
+    if (!iw || !ih) return;
+
+    const scale = Math.min(vw / iw, vh / ih);
+    const displayedW = iw * scale;
+    const bar = Math.max(0, (vw - displayedW) / 2);
+
+    document.documentElement.style.setProperty("--side-bar", `${bar}px`);
+
+    const active = bar >= 60;
+    left.classList.toggle("is-active", active);
+    right.classList.toggle("is-active", active);
+
+    if (active) {
+      if (left.childElementCount === 0 || right.childElementCount === 0) {
+        clearDecor();
+        const count = vh > 820 ? 7 : 5;
+        spawnLogos(left, count);
+        spawnLogos(right, count);
+      }
+    } else {
+      clearDecor();
+    }
+  }
+
+  bgImg.onload = () => updateSideBars();
+
+  window.addEventListener("resize", () => {
+    clearDecor();
+    updateSideBars();
+  });
+})();
