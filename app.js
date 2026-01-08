@@ -302,36 +302,6 @@ function waitTransitionEnd(el, msFallback = 0) {
 }
 
 async function selectRandomWinner() {
-  function getTranslateY(el) {
-    const tr = getComputedStyle(el).transform;
-    if (!tr || tr === "none") return 0;
-    const m = new DOMMatrixReadOnly(tr);
-    return m.m42; 
-  }
-
-  function waitTransitionEnd(el, msFallback = 0) {
-    return new Promise((resolve) => {
-      let done = false;
-      const onEnd = (e) => {
-        if (e.propertyName !== "transform") return;
-        if (done) return;
-        done = true;
-        el.removeEventListener("transitionend", onEnd);
-        resolve();
-      };
-      el.addEventListener("transitionend", onEnd);
-
-      if (msFallback > 0) {
-        setTimeout(() => {
-          if (done) return;
-          done = true;
-          el.removeEventListener("transitionend", onEnd);
-          resolve();
-        }, msFallback);
-      }
-    });
-  }
-
   if (isSelecting) return;
 
   isSelecting = true;
@@ -343,6 +313,11 @@ async function selectRandomWinner() {
     selectWinnerButton.disabled = false;
     return;
   }
+
+  shuffle(remainingParticipants);
+
+  renderBaseRouletteList();
+  await sleep(50);
 
   const randomIndex = Math.floor(Math.random() * remainingParticipants.length);
   const winnerObj = remainingParticipants[randomIndex];
@@ -364,7 +339,7 @@ async function selectRandomWinner() {
     if (prevLastId !== null && chunk.length > 1 && chunk[0].id === prevLastId) {
       let guard = 0;
       while (guard < chunk.length && chunk[0].id === prevLastId) {
-        chunk.push(chunk.shift()); // rotar
+        chunk.push(chunk.shift());
         guard++;
       }
     }
@@ -460,7 +435,6 @@ async function selectRandomWinner() {
   selectWinnerButton.disabled = false;
   updateStatus();
 }
-
 
 
 function startDraw() {
