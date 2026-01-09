@@ -13,19 +13,30 @@ body {
   align-items: center;
   justify-content: center;
 
-  background-color: #0d2a5e;
+  background: linear-gradient(
+    180deg,
+    rgb(31, 78, 155) 0%,
+    rgb(127, 147, 160) 55%,
+    rgb(204, 230, 246) 100%
+  );
+
+  color: #cce6f6;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
+}
+body::after{
+  content: "";
+  position: fixed;
+  inset: 0;
   background-image: url("Resources/eventos.png");
   background-repeat: no-repeat;
   background-position: center center;
-  background-size: contain;
-
-  color: #cce6f6;
-
-  overflow-x: hidden;
-  overflow-y: auto;
-
-  position: relative;
+  background-size: auto 100%;
+  pointer-events: none;
+  z-index: 1;
 }
+
 
 body::before {
   content: "";
@@ -33,52 +44,99 @@ body::before {
   inset: 0;
   background: radial-gradient(circle at top, rgba(31, 78, 155, 0.15), rgba(13, 42, 94, 0.35));
   pointer-events: none;
-  z-index: 0;
+  z-index: 2; 
 }
+
 
 
 
 :root{
-  --side-bar: 0px;
-
   --glass-bg: rgba(13, 42, 94, 0.42);
   --glass-border: rgba(255, 255, 255, 0.18);
   --glass-blur: 2px;
   --glass-sat: 1.0;
-}
 
+  --min-side: 150px;
+  --max-content: 1300px;
+
+  --appW: min(var(--max-content), max(320px, calc(100vw - (2 * var(--min-side)))));
+  --sideW: max(0px, calc((100vw - var(--appW)) / 2));
+
+  --logo-count: 5;
+  --side-pad-y: 18px;
+  --side-gap: 18px;
+}
 
 .side-decor{
   position: fixed;
   top: 0;
   bottom: 0;
-  width: var(--side-bar);
+
+  width: calc(var(--sideW) + 1px);
+
   overflow: hidden;
   pointer-events: none;
-  z-index: 2;
-  opacity: 0;
-  transition: opacity .25s ease;
+  z-index: 3;
+
+  opacity: 1 !important;
+
+  background: linear-gradient(
+    180deg,
+    rgb(31, 78, 155) 0%,
+    rgb(127, 147, 160) 55%,
+    rgb(204, 230, 246) 100%
+  ) !important;
 }
 
-.side-decor.is-active{ opacity: 1; }
 .side-decor.left{ left: 0; }
 .side-decor.right{ right: 0; }
 
-.side-decor .dvd-logo{
-  position: absolute;
-  left: 0;
-  top: 0;
 
-  width: var(--size, 72px);
-  height: var(--size, 72px);
-  object-fit: contain;
 
-  opacity: var(--op, 0.85);
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,.35));
-  will-change: transform;
-
-  /* filter: drop-shadow(0 0 10px rgba(148,191,86,.45)) drop-shadow(0 10px 20px rgba(0,0,0,.35)); */
+.side-stack{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;      
+  align-items: center;
+  padding: var(--side-pad-y) 10px;
+  gap: var(--side-gap);
 }
+
+.side-stack{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--side-pad-y) 10px;
+  gap: var(--side-gap);
+}
+
+.side-logo{
+  width: min(78%, 220px);
+
+  height: min(
+    220px,
+    calc(
+      (100vh - (2 * var(--side-pad-y)) - ((var(--logo-count) - 1) * var(--side-gap)))
+      / var(--logo-count)
+    )
+  );
+
+  object-fit: contain;
+  object-position: center;
+  display: block;
+
+  transform-origin: center;
+}
+
+.side-logo.is-chivas { transform: scale(1.35); } 
+.side-logo.is-astros { transform: scale(1.20); }  
+
+
+
+
 
 
 @keyframes floatY{
@@ -88,17 +146,22 @@ body::before {
 
 
 .app {
-  width: min(1300px, 96vw);
-  max-width: 1300px;
-  padding: clamp(12px, 2.5vw, 32px);
+  width: var(--appW);
+  max-width: var(--max-content);
 
+  padding: clamp(12px, 2.5vw, 32px);
   display: flex;
   flex-direction: column;
   align-items: center;
 
   position: relative;
-  z-index: 3;
+  z-index: 4;
 }
+
+
+
+
+
 
 .card {
   width: 100%;
@@ -168,13 +231,11 @@ textarea{
   background: linear-gradient(135deg, rgba(168, 204, 120, 0.95), rgba(143, 161, 173, 0.95));
 }
 
-@media (max-width: 720px){
-  .icon-excel{
-    width: 100%;
-    justify-content: center;
-    display: inline-flex;
-  }
+@media (max-width: 1000px){
+  .side-decor{ display: none; }
+  .app{ width: min(1300px, 96vw); }
 }
+
 
 
 .title {
@@ -192,8 +253,16 @@ textarea{
 }
 
 @media (max-width: 720px){
-  .title{ justify-content: center; text-align: center; }
+  :root{ --min-side: 0px; }
+  .side-decor{ display: none; }
+  .app{ width: min(1300px, 96vw); }
 }
+
+@media (max-width: 950px){
+  :root{ --min-side: 110px; }
+  .side-logo{ width: min(90px, 80%); max-height: 100px; }
+}
+
 
 .title span.emoji {
   animation: float 3.5s ease-in-out infinite, shimmer 2s ease-in-out infinite;
@@ -598,7 +667,6 @@ textarea:focus {
   to { transform: rotateZ(360deg); }
 }
 
-/* ===== Modal Evento/Fecha ===== */
 .modal{
   position: fixed;
   inset: 0;
@@ -677,4 +745,54 @@ textarea:focus {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+
+@media (min-width: 680px) and (max-width: 780px) {
+
+  body{
+    justify-content: flex-start;
+    padding-top: 90px;
+    padding-bottom: 18px;
+  }
+
+  #setupScreen{
+    padding: 22px;
+    margin-top: 0;
+  }
+
+  #setupScreen textarea{
+    min-height: 140px;
+    max-height: 34vh;
+  }
+
+  #setupScreen .title{
+    font-size: clamp(22px, 3.2vw, 40px);
+  }
+
+  #setupScreen .setup-left{
+    min-width: 100%;
+  }
+}
+
+
+@media (min-width: 1024px) and (max-width: 1440px) and (max-height: 900px) {
+
+  #setupScreen textarea{
+    min-height: 130px;
+    max-height: 28vh;
+  }
+
+  #setupScreen{
+    padding: 18px;
+  }
+
+  #setupScreen .title{
+    font-size: clamp(22px, 2.8vw, 38px);
+    margin-bottom: 6px;
+  }
+
+  #setupScreen .controls{ margin-top: 10px; }
+  #setupScreen .textarea-label{ margin-bottom: 6px; }
+  #setupScreen .setup-top{ gap: 10px; }
 }

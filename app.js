@@ -17,7 +17,6 @@ const attendedCheckbox = document.getElementById('attendedCheckbox');
 
 const downloadExcelBtn = document.getElementById('downloadExcelBtn');
 
-// ===== Modal Evento/Fecha =====
 const eventModal = document.getElementById('eventModal');
 const eventSelect = document.getElementById('eventSelect');
 const eventDateInput = document.getElementById('eventDate');
@@ -25,7 +24,7 @@ const acceptEventBtn = document.getElementById('acceptEventBtn');
 const closeEventModalBtn = document.getElementById('closeEventModalBtn');
 
 let selectedEvent = "";
-let selectedDate = ""; // YYYY-MM-DD
+let selectedDate = ""; 
 
 let allParticipants = [];
 let remainingParticipants = [];
@@ -628,7 +627,6 @@ backButton.addEventListener('click', () => resetToSetup());
 closeWinnerBtn.addEventListener('click', () => closeWinnerOverlay());
 downloadExcelBtn.addEventListener('click', () => downloadWinnersExcel());
 
-// Listeners modal
 acceptEventBtn.addEventListener('click', () => acceptEventAndStart());
 closeEventModalBtn.addEventListener('click', () => closeEventModal());
 eventModal.addEventListener('click', (e) => {
@@ -641,241 +639,18 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* ===== Decor DVD (rebotes) ===== */
-(function initSideDecorDVD() {
-  const left = document.querySelector('.side-decor.left');
-  const right = document.querySelector('.side-decor.right');
-  if (!left || !right) return;
+(function rotateEmoji() {
+  const el = document.querySelector('.title .emoji') || document.querySelector('.emoji');
+  if (!el) return;
 
-  const logos = [
-    "Resources/AstrosLogo.png",
-    "Resources/AtlasLogo.png",
-    "Resources/CharrosLogo.png",
-    "Resources/ChivasLogo.png"
-  ];
+  const emojis = ["⚾", "⚽", "🏀", "🎫"];
+  let i = 0;
 
-  const bgImg = new Image();
-  bgImg.src = "Resources/eventos.png";
+  el.textContent = emojis[i];
 
-  let rafId = null;
-  let spritesL = [];
-  let spritesR = [];
-  let running = false;
-  let lastT = 0;
-
-  function rand(min, max) { return min + Math.random() * (max - min); }
-  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-  function clearDecor() {
-    left.innerHTML = "";
-    right.innerHTML = "";
-    spritesL = [];
-    spritesR = [];
-  }
-
-  function stopAnim() {
-    running = false;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = null;
-  }
-
-  function startAnim() {
-    if (running) return;
-    running = true;
-    lastT = performance.now();
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function aabbOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
-    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
-  }
-
-  function renderSprite(s) {
-    s.el.style.transform = `translate3d(${s.x}px, ${s.y}px, 0)`;
-  }
-
-  function clampInside(s, W, H) {
-    s.x = Math.max(0, Math.min(s.x, Math.max(0, W - s.w)));
-    s.y = Math.max(0, Math.min(s.y, Math.max(0, H - s.h)));
-  }
-
-  function spawnBouncers(container, count) {
-    const W = container.clientWidth;
-    const H = container.clientHeight;
-
-    // Asegura que haya al menos 1 de cada logo
-    const sources = [...logos];
-    while (sources.length < count) sources.push(pick(logos));
-    shuffle(sources);
-
-    const sprites = [];
-
-    for (let i = 0; i < count; i++) {
-      const minSize = 53;
-      const maxSize = 70;
-      const hardCap = Math.max(28, Math.min(maxSize, Math.floor(Math.min(W, H) * 0.32)));
-      const size = Math.round(rand(minSize, hardCap));
-
-      const speed = rand(65, 130) * (62 / Math.max(40, size));
-      const angle = rand(0, Math.PI * 2);
-
-      const el = document.createElement("img");
-      el.className = "dvd-logo";
-      el.src = sources[i];
-      el.alt = "";
-      el.style.setProperty("--size", `${size}px`);
-      el.style.setProperty("--op", `${rand(0.55, 0.95).toFixed(2)}`);
-      container.appendChild(el);
-
-      let x = 0, y = 0;
-      let placed = false;
-
-      for (let tries = 0; tries < 120; tries++) {
-        x = rand(0, Math.max(0, W - size));
-        y = rand(0, Math.max(0, H - size));
-
-        let ok = true;
-        for (const s of sprites) {
-          if (aabbOverlap(x, y, size, size, s.x, s.y, s.w, s.h)) {
-            ok = false;
-            break;
-          }
-        }
-        if (ok) { placed = true; break; }
-      }
-
-      if (!placed) {
-        x = rand(0, Math.max(0, W - size));
-        y = rand(0, Math.max(0, H - size));
-      }
-
-      const s = {
-        el,
-        x, y,
-        vx: Math.cos(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
-        vy: Math.sin(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
-        w: size,
-        h: size
-      };
-
-      sprites.push(s);
-      renderSprite(s);
-    }
-
-    return sprites;
-  }
-
-  function updateWorld(container, sprites, dt) {
-    const W = container.clientWidth;
-    const H = container.clientHeight;
-
-    for (const s of sprites) {
-      s.x += s.vx * dt;
-      s.y += s.vy * dt;
-
-      if (s.x <= 0) { s.x = 0; s.vx = Math.abs(s.vx); }
-      else if (s.x + s.w >= W) { s.x = Math.max(0, W - s.w); s.vx = -Math.abs(s.vx); }
-
-      if (s.y <= 0) { s.y = 0; s.vy = Math.abs(s.vy); }
-      else if (s.y + s.h >= H) { s.y = Math.max(0, H - s.h); s.vy = -Math.abs(s.vy); }
-    }
-
-    for (let i = 0; i < sprites.length; i++) {
-      for (let j = i + 1; j < sprites.length; j++) {
-        const a = sprites[i];
-        const b = sprites[j];
-
-        if (!aabbOverlap(a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h)) continue;
-
-        const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-        const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-
-        if (overlapX < overlapY) {
-          const push = overlapX / 2;
-          if (a.x < b.x) { a.x -= push; b.x += push; }
-          else { a.x += push; b.x -= push; }
-
-          const tmp = a.vx; a.vx = b.vx; b.vx = tmp;
-        } else {
-          const push = overlapY / 2;
-          if (a.y < b.y) { a.y -= push; b.y += push; }
-          else { a.y += push; b.y -= push; }
-
-          const tmp = a.vy; a.vy = b.vy; b.vy = tmp;
-        }
-
-        a.vx += rand(-8, 8);
-        a.vy += rand(-8, 8);
-        b.vx += rand(-8, 8);
-        b.vy += rand(-8, 8);
-
-        clampInside(a, W, H);
-        clampInside(b, W, H);
-      }
-    }
-
-    for (const s of sprites) renderSprite(s);
-  }
-
-  function tick(t) {
-    if (!running) return;
-    const dt = Math.min(0.033, (t - lastT) / 1000);
-    lastT = t;
-
-    updateWorld(left, spritesL, dt);
-    updateWorld(right, spritesR, dt);
-
-    rafId = requestAnimationFrame(tick);
-  }
-
-  function updateSideBars() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    const iw = bgImg.naturalWidth || 0;
-    const ih = bgImg.naturalHeight || 0;
-    if (!iw || !ih) return;
-
-    const scale = Math.min(vw / iw, vh / ih);
-    const displayedW = iw * scale;
-    const bar = Math.max(0, (vw - displayedW) / 2);
-
-    document.documentElement.style.setProperty("--side-bar", `${bar}px`);
-
-    const active = bar >= 60;
-    left.classList.toggle("is-active", active);
-    right.classList.toggle("is-active", active);
-
-    if (!active) {
-      stopAnim();
-      clearDecor();
-      return;
-    }
-
-    if (spritesL.length === 0 || spritesR.length === 0) {
-      clearDecor();
-
-      const count = Math.max(4, vh > 820 ? 8 : 6);
-
-      void left.offsetWidth;
-      void right.offsetWidth;
-
-      spritesL = spawnBouncers(left, count);
-      spritesR = spawnBouncers(right, count);
-
-      startAnim();
-    } else {
-      const WL = left.clientWidth, HL = left.clientHeight;
-      const WR = right.clientWidth, HR = right.clientHeight;
-
-      for (const s of spritesL) clampInside(s, WL, HL);
-      for (const s of spritesR) clampInside(s, WR, HR);
-    }
-  }
-
-  bgImg.onload = updateSideBars;
-
-  window.addEventListener("resize", () => {
-    updateSideBars();
-  });
+  setInterval(() => {
+    i = (i + 1) % emojis.length;
+    el.textContent = emojis[i];
+  }, 1000);
 })();
+
